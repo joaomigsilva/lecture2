@@ -2,8 +2,10 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.124.0/build/three.module.js'
 import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.124.0/examples/jsm/controls/OrbitControls.js'
 import { Rhino3dmLoader } from 'https://cdn.jsdelivr.net/npm/three@0.124.0/examples/jsm/loaders/3DMLoader.js'
+import { GUI } from 'https://cdn.jsdelivr.net/npm/three@0.124.0/examples/jsm/libs/dat.gui.module.js';
 
-let camera, scene, raycaster, renderer
+
+let camera, scene, raycaster, renderer, gui
 const mouse = new THREE.Vector2()
 window.addEventListener( 'click', onClick, false);
 
@@ -15,11 +17,17 @@ function init() {
     THREE.Object3D.DefaultUp = new THREE.Vector3( 0, 0, 1 )
 
     // create a scene and a camera
+    var d = 20;
+
     scene = new THREE.Scene()
     scene.background = new THREE.Color(1,1,1)
-    camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 )
-    camera.position.y = - 100
-
+    camera = new THREE.PerspectiveCamera( 55, window.innerWidth / window.innerHeight, 0.1, 1000 )
+    camera.position.y = - 20
+    
+    camera.position.set( 2, 28, 20 ); 
+    camera.lookAt( scene.position ); 
+    window.addEventListener( 'resize', onWindowResize, false );
+    
     // create the renderer and add it to the html
     renderer = new THREE.WebGLRenderer( { antialias: true } )
     renderer.setSize( window.innerWidth, window.innerHeight )
@@ -28,24 +36,27 @@ function init() {
     const controls = new OrbitControls( camera, renderer.domElement )
 
     const directionalLight = new THREE.DirectionalLight( 0xffffff )
-    directionalLight.position.set( 0, 0, 2 )
+    directionalLight.position.set( -10, -5, 5 )
     directionalLight.castShadow = true
     directionalLight.intensity = 2
+    const light = new THREE.AmbientLight( 0x404040 ); // soft white light
+    scene.add( light ); 
     scene.add( directionalLight )
 
     raycaster = new THREE.Raycaster()
 
+
     const loader = new Rhino3dmLoader()
     loader.setLibraryPath( 'https://cdn.jsdelivr.net/npm/rhino3dm@0.13.0/' )
 
-    loader.load( 'sphere.3dm', function ( object ) {
+    loader.load( 'plaza.3dm', function ( object ) {
 
         document.getElementById('loader').remove()
         scene.add( object )
         console.log( object )
-
+        initGUI( object.userData.layers );
     } )
-
+    
 }
 
 function onClick( event ) {
@@ -79,7 +90,7 @@ function onClick( event ) {
         const object = intersects[0].object
         console.log(object) // debug
 
-        object.material.color.set( 'yellow' )
+        object.material.color.set( 'blue' )
 
         // get user strings
         let data, count
@@ -110,6 +121,7 @@ function onClick( event ) {
         }
 
         document.body.appendChild( container )
+        console.log( camera )
     }
 
 }
@@ -118,6 +130,65 @@ function animate() {
 
     requestAnimationFrame( animate )
     renderer.render( scene, camera )
+ 
+
 
 }
+function initGUI( layers ) {
+
+    gui = new GUI( { width: 300 } );
+    const layersControl = gui.addFolder( 'Layers' );
+    layersControl.open();
+
+    
+        const layerArvEsq = layers[ 3 ];
+        const layerArvDir = layers[ 2 ];
+        layersControl.add( layerArvDir, 'visible' ).name( "Proposal" ).onChange( function ( val ) {
+
+            const nameEsq = layerArvEsq.name;
+            const nameDir = layerArvDir.name;
+            scene.traverse( function ( child ) {
+
+                if ( child.userData.hasOwnProperty( 'attributes' ) ) {
+
+                    if ( 'layerIndex' in child.userData.attributes ) {
+
+                        const layerName = layers[ child.userData.attributes.layerIndex ].name;
+
+                        if ( layerName === nameEsq) {
+
+                            child.visible = val;
+                            layerArvEsq.visible = val;
+                            
+                            
+
+                        }
+                        if (layerName === nameDir) {
+                            child.visible = !val;
+                            
+                        }
+                    }
+
+                   
+
+                }
+
+            } );
+
+        } );
+
+    
+
+
+        
+}    
+function onWindowResize(){
+
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize( window.innerWidth, window.innerHeight );
+
+}
+
 
